@@ -55,7 +55,7 @@ if __name__ == '__main__':
 	for t in localConf.items('spark-config'):
 		sparkConf.set(t[0], t[1])
 	spark = SparkSession.builder \
-			.appName('RLab_Stats_Report___Cal_Installed_Stats_for_Device') \
+			.appName('RLab_Stats_Report___Cal_Installed_Stats') \
 			.config(conf=sparkConf) \
 			.enableHiveSupport() \
 			.getOrCreate()

@@ -11,7 +11,7 @@ set mapreduce.job.queuename=root.partner.ronghui.preonline;
 set hive.support.concurrency=false;
 set hive.vectorized.execution=ture;
 set hive.exec.reducers.max=20000;
-set mapreduce.job.name=RLab_cal_general_installment_stats;
+set mapreduce.job.name=RLab_cal_total_installment_counts;
 
 insert into table ronghui.hgy_04
 partition
