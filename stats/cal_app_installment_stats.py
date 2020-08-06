@@ -41,4 +41,4 @@ if __name__ == '__main__':
 	print(app_stats)
 	app = app.withColumn('app_index', F.row_number().over(Window.partitionBy('status').orderBy(F.col('count').desc())))
 	app = app.select('app_package', 'status', 'app_index', F.col('count').alias('app_count'))
-	app.repartition(1).write.csv('/user/ronghui_safe/hgy/rlab_stats_report/installment/app_rank/{0}'.format(args.query_month), header=True)
+	app.repartition(1).write.csv('/user/ronghui_safe/hgy/rlab_stats_report/installment/app/{0}'.format(args.query_month), header=True)

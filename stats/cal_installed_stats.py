@@ -87,4 +87,4 @@ if __name__ == '__main__':
 	result['avg_daily_installed_stat_{0}'.format(args.entity)] = device_stats[0]*1.0/device_stats[1]
 
 	result = sc.parallelize([result]).map(transform_to_row).toDF()
-	result.repartition(1).write.csv('/user/ronghui_safe/hgy/rlab_stats_report/installed/{0}/{1}'.format(args.entity, args.query_month), header=True)
+	result.repartition(1).write.csv('/user/ronghui_safe/hgy/rlab_stats_report/installment/installed/{0}/{1}'.format(args.entity, args.query_month), header=True)
