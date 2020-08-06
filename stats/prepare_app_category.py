@@ -41,4 +41,4 @@ if __name__ == '__main__':
 	print('====> Start calculation')
 	apps = retrieveAppCategory(spark)
 	apps = apps.withColumn('unclassified', F.lit(1))
-	apps.repartition(1).write.csv('./hgy/rlab_stats_report/unclassified_app', header=True)
+	apps.repartition(1).write.csv('/user/ronghui_safe/hgy/rlab_stats_report/unclassified_app', header=True)
