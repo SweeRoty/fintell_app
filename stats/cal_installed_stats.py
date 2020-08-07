@@ -11,7 +11,7 @@ import argparse
 def retrieveRawRecords(spark, fr, to):
 	sql = """
 		select
-			distinct imei,
+			distinct md5(cast(imei as string)) imei,
 			package app_package,
 			data_date
 		from
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 	devices = loadSampledDevices(spark, args.query_month)
 	records = records.join(devices, on=['imei'], how='inner')
 
-	devices = records.repartition(10000, [args.entity]).rdd.map(lambda row: ('{0}_{1}'.format(row[args.entity], row['data_date']), 1)).reduceByKey(lambda x, y: x+y)
+	devices = records.repartition(10000, [args.entity]).rdd.map(lambda row: ('{0}_{1}'.format(row[args.entity].encode('utf-8'), row['data_date']), 1)).reduceByKey(lambda x, y: x+y)
 	devices = devices.map(lambda t: (t[0].split('_')[0], (t[1], 1))).reduceByKey(lambda a, b: (a[0]+b[0], a[1]+b[1])).mapValues(lambda t: t[0]*1.0/t[1])
 	device_stats = devices.map(lambda t: (t[1], 1)).reduce(lambda a, b: (a[0]+b[0], a[1]+b[1]))
 	result['avg_daily_installed_stat_{0}'.format(args.entity)] = device_stats[0]*1.0/device_stats[1]
