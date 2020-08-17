@@ -5,6 +5,7 @@ from ConfigParser import RawConfigParser
 from pyspark import SparkConf
 from pyspark.sql import functions as F
 from pyspark.sql import Row, SparkSession
+from pyspark.sql.types import StringType
 
 import argparse
 
@@ -69,6 +70,6 @@ if __name__ == '__main__':
 	invalid_devices = getInvalidDevices(spark, to) ### assume to is the last day of this month
 	devices = devices.join(invalid_devices, on='imei', how='left_outer').where(F.isnull(F.col('flag')))
 	lasting_days = int(to)-int(fr)+1
-	devices = devices.where(F.col('scanned_date_count') == lasting_days)
+	devices = devices.where(F.col('scanned_date_count') == lasting_days).withColumn('score', F.lit(None).cast(StringType))
 	devices.select('imei', 'data_date').registerTempTable('tmp')
-	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_06 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.query_date)).collect()
+	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_01 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.query_month)).collect()
