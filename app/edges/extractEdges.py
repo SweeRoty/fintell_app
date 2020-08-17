@@ -86,13 +86,13 @@ def generateEdge(t):
 				#edges.append(('{0}_{1}'.format(apps[i][0], apps[j][0]), edge_prob))
 				random.seed(seed+count)
 				if random.random() < edge_prob:
-					edge_name = '{0}_x_{1}'.format(apps[i][0], apps[j][0])
+					edge_name = '{0}sweeroty{1}'.format(apps[i][0], apps[j][0])
 					edges.append(edge_name)
 				count += 1
 	return edges
 
 def transform_to_row(t):
-	fr, to = t[0].split('_x_')
+	fr, to = t[0].split('sweeroty')
 	return Row(fr=fr, to=to, weight=int(t[1]))
 
 if __name__ == '__main__':
