@@ -63,12 +63,11 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--query_date', type=str)
 	args = parser.parse_args()
-	#fr = args.query_month+'01'
 	query_month = args.query_date[:6]
-	to = query_month+str(monthrange(int(query_month[:4]), int(query_month[4:]))[1])
+	month_end = query_month+str(monthrange(int(query_month[:4]), int(query_month[4:]))[1])
 
 	print('====> Start calculation')
-	devices = getInvalidDevices(spark, to)
+	devices = getInvalidDevices(spark, month_end)
 	records = getRawRecords(spark, args.query_date)
 	records = records.join(devices, on=['imei'], how='left_outer').where(F.col('flag').isNull())
 	apps = records.drop('imei').repartition(10000, 'app_package').rdd.map(lambda row: (row['app_package'].encode('utf-8'), 1)).reduceByKey(lambda x, y: x+y)
