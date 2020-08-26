@@ -46,7 +46,7 @@ def transform_to_row(t):
 if __name__ == '__main__':
 	print('====> Initializing Spark APP')
 	localConf = RawConfigParser()
-	localConf.read('../../config')
+	localConf.read('../../stats/config')
 	sparkConf = SparkConf()
 	for t in localConf.items('spark-config'):
 		sparkConf.set(t[0], t[1])
@@ -60,16 +60,19 @@ if __name__ == '__main__':
 
 	print('====> Parsing local arguments')
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--query_month', type=str)
+	parser.add_argument('--fr', type=str)
+	parser.add_argument('--to', type=str)
 	args = parser.parse_args()
-	fr = args.query_month+'01'
-	to = args.query_month+str(monthrange(int(args.query_month[:4]), int(args.query_month[4:]))[1])
+	query_month = args.fr[:6]
+	month_end = str(monthrange(int(query_month[:4]), int(query_month[4:]))[1])
+	month_end = query_month+month_end
 
 	print('====> Start calculation')
-	devices = retrieveScannedDevices(spark, fr, to)
-	invalid_devices = getInvalidDevices(spark, to) ### assume to is the last day of this month
+	devices = retrieveScannedDevices(spark, args.fr, args.to)
+	invalid_devices = getInvalidDevices(spark, month_end)
 	devices = devices.join(invalid_devices, on='imei', how='left_outer').where(F.isnull(F.col('flag')))
-	lasting_days = int(to)-int(fr)+1
-	devices = devices.where(F.col('scanned_date_count') == lasting_days).withColumn('score', F.lit(None).cast(StringType))
-	devices.select('imei', 'data_date').registerTempTable('tmp')
-	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_01 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.query_month)).collect()
+	lasting_days = int(args.to)-int(args.fr)+1
+	devices = devices.where(F.col('scanned_date_count') >= lasting_days)
+	devices = devices.drop('scanned_date_count').drop('flag').withColumn('score', F.lit(None).cast(StringType()))
+	devices.select('imei', 'score').registerTempTable('tmp')
+	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_01 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(query_month)).collect()
