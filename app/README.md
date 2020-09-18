@@ -9,7 +9,7 @@
 1. `cd edges/`
 2. Extract edges connecting valid vertices based on their total frequencies (delivered to JiGuang): `spark-submit extractEdges.py --fr 20200801 --to 20200801 --device_date 20200814`
 
-### Detect communities locally using TigerGraph
+### Detect communities locally on TigerGraph
 1. Download vertex and edge files to the local environment
 2. `cd community_detection`
 3. Load graph data into TigerGraph if not imported: `gsql ` 
