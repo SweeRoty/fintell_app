@@ -41,15 +41,16 @@ if __name__ == '__main__':
 
 	print('====> Parsing local arguments')
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--query_month', type=str)
+	parser.add_argument('--fr', type=str)
+	parser.add_argument('--to', type=str)
 	args = parser.parse_args()
-	fr = args.query_month+'01'
-	to = args.query_month+str(monthrange(int(args.query_month[:4]), int(args.query_month[4:]))[1])
+	#fr = args.query_month+'01'
+	#to = args.query_month+str(monthrange(int(args.query_month[:4]), int(args.query_month[4:]))[1])
 
 	print('====> Start calculation')
-	records = getRawRecords(spark, fr, to)
+	records = getRawRecords(spark, args.fr, args.to)
 	vertices = records.groupBy(['app_package']).agg(F.sum('app_count').alias('app_freq'))
 	vertices = vertices.withColumn('partition', F.lit(1))
 	vertices = vertices.withColumn('app_index', F.row_number().over(Window.partitionBy('partition').orderBy(F.col('app_freq'))))
 	vertices = vertices.drop('partition').select('app_package', 'app_index', 'app_freq').registerTempTable('tmp')
-	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_05 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.query_month)).collect()
+	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_05 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.fr)).collect()
