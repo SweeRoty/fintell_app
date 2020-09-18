@@ -27,6 +27,7 @@ def getRawRecords(spark, fr, to):
 if __name__ == '__main__':
 	print('====> Initializing Spark APP')
 	localConf = RawConfigParser()
+	localConf.optionxform = str
 	localConf.read('../../config')
 	sparkConf = SparkConf()
 	for t in localConf.items('spark-config'):
