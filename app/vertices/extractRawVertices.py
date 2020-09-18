@@ -22,6 +22,19 @@ def getInvalidDevices(spark, data_date):
 	devices = spark.sql(sql)
 	return devices
 
+def getValidDevices(spark, data_date):
+	sql = """
+		select
+			imei
+		from
+			ronghui.hgy_01
+		where
+			data_date = '{0}'
+	""".format(data_date)
+	print(sql)
+	devices = spark.sql(sql)
+	return devices
+
 def getRawRecords(spark, data_date):
 	sql = """
 		select
@@ -47,7 +60,7 @@ def transform_to_row(t):
 if __name__ == '__main__':
 	print('====> Initializing Spark APP')
 	localConf = RawConfigParser()
-	localConf.read('../../config')
+	localConf.read('./config')
 	sparkConf = SparkConf()
 	for t in localConf.items('spark-config'):
 		sparkConf.set(t[0], t[1])
@@ -62,14 +75,20 @@ if __name__ == '__main__':
 	print('====> Parsing local arguments')
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--query_date', type=str)
+	parser.add_argument('--data_date', type=str)
 	args = parser.parse_args()
 	query_month = args.query_date[:6]
 	month_end = query_month+str(monthrange(int(query_month[:4]), int(query_month[4:]))[1])
 
 	print('====> Start calculation')
+	'''
 	devices = getInvalidDevices(spark, month_end)
 	records = getRawRecords(spark, args.query_date)
 	records = records.join(devices, on=['imei'], how='left_outer').where(F.col('flag').isNull())
+	'''
+	devices = getValidDevices(spark, args.data_date)
+	records = getRawRecords(spark, args.query_date)
+	records = records.join(devices, on=['imei'], how='inner')
 	apps = records.drop('imei').repartition(10000, 'app_package').rdd.map(lambda row: (row['app_package'].encode('utf-8'), 1)).reduceByKey(lambda x, y: x+y)
 	apps = apps.map(transform_to_row).toDF().select('app_package', 'app_count').registerTempTable('tmp')
 	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_06 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.query_date)).collect()
