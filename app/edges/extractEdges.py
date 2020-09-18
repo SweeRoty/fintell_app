@@ -7,7 +7,7 @@ from pyspark.sql import functions as F
 from pyspark.sql import Row, SparkSession
 
 import argparse
-import sys
+import numpy as np
 
 def getInvalidDevices(spark, data_date):
 	sql = """
@@ -39,10 +39,10 @@ def loadSampledDevices(spark, query_month):
 def getRawEdges(spark, fr, to):
 	sql = """
 		select
-			distinct imei,
+			distinct md5(cast(imei as string)) imei,
 			package app_package
 		from
-			ronghui.mx_ori_app_list_fact
+			edw.app_list_install_uninstall_fact
 		where
 			data_date between '{0}' and '{1}'
 			and status >= 1
@@ -82,7 +82,8 @@ def generateEdge(t):
 			for j in range(i+1, n):
 				#if count > 9:
 				#	break
-				edge_prob = 1e6/(apps[i][0]*apps[j][0])
+				#edge_prob = 1e7/(apps[i][0]*apps[j][0])
+				edge_prob = 1.1e4/(np.power(apps[i][1], 0.6)*np.power(apps[j][1], 0.6))
 				#edges.append(('{0}_{1}'.format(apps[i][0], apps[j][0]), edge_prob))
 				random.seed(seed+count)
 				if random.random() < edge_prob:
@@ -98,6 +99,7 @@ def transform_to_row(t):
 if __name__ == '__main__':
 	print('====> Initializing Spark APP')
 	localConf = RawConfigParser()
+	localConf.optionxform = str
 	localConf.read('../../config')
 	sparkConf = SparkConf()
 	for t in localConf.items('spark-config'):
@@ -124,16 +126,14 @@ if __name__ == '__main__':
 	devices = getInvalidDevices(spark, month_end)
 	edges = edges.join(devices, on=['imei'], how='left_outer').where(F.col('flag').isNull())
 	"""
-	devices = loadSampledDevices(spark, query_month)
+	devices = loadSampledDevices(spark, '20200814').sample(False, 0.05, 11267)
 	edges = edges.join(devices, on=['imei'], how='inner')
-	vertices = getVertices(spark, query_month)
+	vertices = getVertices(spark, args.fr)
+	vertices = vertices.where(vertices.app_freq > 27000)
 	edges = edges.join(vertices, on=['app_package'], how='inner').drop('app_package')
-	edges = edges.where(edges.app_freq > 10000)
-	"""
-	edges = edges.repartition(20000, 'imei').rdd.map(lambda row: (row['imei'], (row['app_index'], row['app_freq']))).groupByKey().mapValues(lambda t: len(list(t))).mapValues(lambda t: t*(t-1)/2).map(lambda t: t[1]).reduce(lambda x,y: x+y)
-	print edges
-	"""
-	edges = edges.repartition(20000, 'imei').rdd.map(lambda row: (row['imei'], (row['app_index']-11767476, row['app_freq']))).groupByKey().flatMap(generateEdge)
-	#print(edges.count()); sys.exit()
+	#edges = edges.where(edges.app_freq > 27000)
+	edges = edges.repartition(30000, 'imei').rdd.map(lambda row: (row['imei'], (row['app_index']-17477003, row['app_freq']-27000))).groupByKey().flatMap(generateEdge)
 	edges = edges.map(lambda t: (t, 1)).reduceByKey(lambda x, y: x+y).map(transform_to_row).toDF()
-	edges.repartition(1).write.csv('/user/ronghui_safe/hgy/app/edges/{0}'.format(query_month), header=True)
+	edges = edges.select('fr', 'to', 'weight').registerTempTable('tmp')
+	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_07 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.fr)).collect()
+	#edges.repartition(1).write.csv('/user/hive/warehouse/ronghui_bj.db/hgy/app/edges/{0}_7days_freq_11000_0.6'.format(args.fr), header=True)
