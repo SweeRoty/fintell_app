@@ -1,0 +1,16 @@
+CREATE VERTEX VNAME (PRIMARY_ID id INT, alias INT)
+CREATE UNDIRECTED EDGE ENAME (FROM VNAME, TO VNAME, weight FLOAT)
+
+CREATE GRAPH GNAME (VNAME, ENAME)
+
+USE GRAPH GNAME
+
+CREATE LOADING JOB load_graph FOR GRAPH GNAME {
+    DEFINE FILENAME node="VFILE";
+    DEFINE FILENAME conn="EFILE";
+
+    LOAD node TO VERTEX VNAME VALUES($"alias", $"alias") USING header="true", separator=",";
+    LOAD conn TO EDGE ENAME VALUES($0, $1, $2) USING header="true", separator=",";
+}
+
+RUN LOADING JOB load_graph

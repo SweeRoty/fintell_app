@@ -1,0 +1,52 @@
+use graph GNAME
+drop query conn_comp
+
+/*
+Compute the distribution of (weak) connected components and output the results to a local CSV file
+*/
+
+CREATE DISTRIBUTED QUERY conn_comp (STRING v_type, STRING e_type, STRING file_location) FOR GRAPH GNAME {
+
+    MinAccum<int> @cc_id = 0; //each vertex's tentative component id
+    MinAccum<int> @prev_id = 0;
+    OrAccum<bool> @active; //false
+    MapAccum<int, int> @@compSizes;
+
+    S = {v_type.*};
+
+    # Initialize: Label each vertex with its own internal ID
+    S = select x
+        from S:x
+        post-accum
+            x.@cc_id = getvid(x),
+            x.@prev_id = getvid(x);
+
+    # Propagate smaller internal IDs until no more ID changes can be DOne
+    while (S.size()>0) do
+        S = select t
+            from S:s -(e_type:e)-> :t
+            accum t.@cc_id += s.@cc_id // If s has a smaller id than t, copy the id to t
+            post-accum
+                case
+                when t.@prev_id != t.@cc_id then // If t's id has changed
+                    t.@prev_id += t.@cc_id,
+                    t.@active = true
+                else
+                    t.@active = false
+                end
+            having t.@active == true;
+    end;
+
+    S = {v_type.*};
+
+    S = select s
+        from S:s
+        post-accum @@compSizes += (s.@cc_id -> 1);
+
+    print @@compSizes.size();
+
+}
+
+set query_timeout=120000
+INSTALL QUERY conn_comp
+run query conn_comp("VNAME", "ENAME", "this_parameter_is_not_used_for_this_job")
