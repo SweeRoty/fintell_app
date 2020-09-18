@@ -10,8 +10,9 @@
 2. Extract edges connecting valid vertices based on their total frequencies (delivered to JiGuang): `spark-submit extractEdges.py --fr 20200801 --to 20200801 --device_date 20200814`
 
 ### Detect communities locally on TigerGraph
-1. Download vertex and edge files to the local environment
+1. Download the vertex (nodes.csv) and edge (edges.csv) files into the local TigerGraph environment
 2. `cd community_detection`
-3. Load graph data into TigerGraph if not imported: `gsql ` 
-4. Calculate the number of connected components (optional): `gsql `
-5. Detect communities using Louvain: ``
+3. Adapt the gsql templates for this task (specify the Vertex name, Edge name, Graph name, input and output locations): `sh adapt.sh .\\/nodes.csv .\\/edges.csv APP SharedDevice APP_Graph .\\/output\\/communities.csv`
+4. Load the graph data into TigerGraph: `gsql load_graph.gsql` 
+5. Calculate the number of connected components (optional): `gsql conn_comp.gsql`
+6. Detect communities using Louvain: `gsql louvain.gsql`
