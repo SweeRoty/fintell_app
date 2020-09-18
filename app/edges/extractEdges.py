@@ -116,6 +116,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--fr', type=str)
 	parser.add_argument('--to', type=str)
+	parser.add_argument('--device_date', type=str)
 	args = parser.parse_args()
 	query_month = args.fr[:6]
 	month_end = query_month+str(monthrange(int(query_month[:4]), int(query_month[4:]))[1])
@@ -126,7 +127,7 @@ if __name__ == '__main__':
 	devices = getInvalidDevices(spark, month_end)
 	edges = edges.join(devices, on=['imei'], how='left_outer').where(F.col('flag').isNull())
 	"""
-	devices = loadSampledDevices(spark, '20200814').sample(False, 0.05, 11267)
+	devices = loadSampledDevices(spark, args.device_date).sample(False, 0.05, 11267)
 	edges = edges.join(devices, on=['imei'], how='inner')
 	vertices = getVertices(spark, args.fr)
 	vertices = vertices.where(vertices.app_freq > 27000)
