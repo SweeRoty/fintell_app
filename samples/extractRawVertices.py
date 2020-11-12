@@ -47,7 +47,7 @@ if __name__ == '__main__':
 	print('====> Initializing Spark APP')
 	localConf = RawConfigParser()
 	localConf.optionxform = str
-	localConf.read('../../config')
+	localConf.read('../config')
 	sparkConf = SparkConf()
 	for t in localConf.items('spark-config'):
 		sparkConf.set(t[0], t[1])
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 	#query_month = args.query_date[:6]
 	#month_end = query_month+str(monthrange(int(query_month[:4]), int(query_month[4:]))[1])
 
-	print('====> Start calculation')
+	print('====> Start computation')
 	devices = getValidDevices(spark, args.device_date)
 	records = getRawRecords(spark, args.query_date)
 	records = records.join(devices, on=['imei'], how='inner')

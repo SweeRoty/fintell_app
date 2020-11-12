@@ -27,7 +27,7 @@ if __name__ == '__main__':
 	print('====> Initializing Spark APP')
 	localConf = RawConfigParser()
 	localConf.optionxform = str
-	localConf.read('../../config')
+	localConf.read('../config')
 	sparkConf = SparkConf()
 	for t in localConf.items('spark-config'):
 		sparkConf.set(t[0], t[1])
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 	parser.add_argument('--to', type=str)
 	args = parser.parse_args()
 
-	print('====> Start calculation')
+	print('====> Start computation')
 	records = getRawRecords(spark, args.fr, args.to)
 	vertices = records.groupBy(['app_package']).agg(F.sum('app_count').alias('app_freq'))
 	vertices = vertices.withColumn('partition', F.lit(1))
