@@ -63,6 +63,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--fr', type=str)
 	parser.add_argument('--to', type=str)
+	parser.add_argument('--thres', type=int, default=1, help='Minimum scanned days for devices to be considered')
 	args = parser.parse_args()
 	query_month = args.fr[:6]
 	month_end = str(monthrange(int(query_month[:4]), int(query_month[4:]))[1])
@@ -72,8 +73,7 @@ if __name__ == '__main__':
 	devices = retrieveScannedDevices(spark, args.fr, args.to)
 	invalid_devices = getInvalidDevices(spark, month_end)
 	devices = devices.join(invalid_devices, on='imei', how='left_outer').where(F.isnull(F.col('flag')))
-	lasting_days = 1 #int(args.to)-int(args.fr)+1
-	devices = devices.where(F.col('scanned_date_count') >= lasting_days)
+	devices = devices.where(F.col('scanned_date_count') >= args.thres)
 	devices = devices.drop('scanned_date_count').drop('flag').withColumn('score', F.lit(None).cast(StringType()))
 	devices.select('imei', 'score').registerTempTable('tmp')
 	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_01 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.fr)).collect()

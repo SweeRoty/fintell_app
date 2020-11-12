@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from calendar import monthrange
 from ConfigParser import RawConfigParser
 from pyspark import SparkConf
 from pyspark.sql import functions as F
@@ -45,8 +44,6 @@ if __name__ == '__main__':
 	parser.add_argument('--fr', type=str)
 	parser.add_argument('--to', type=str)
 	args = parser.parse_args()
-	#fr = args.query_month+'01'
-	#to = args.query_month+str(monthrange(int(args.query_month[:4]), int(args.query_month[4:]))[1])
 
 	print('====> Start calculation')
 	records = getRawRecords(spark, args.fr, args.to)

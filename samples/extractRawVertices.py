@@ -8,20 +8,6 @@ from pyspark.sql import Row, SparkSession
 
 import argparse
 
-def getInvalidDevices(spark, data_date):
-	sql = """
-		select
-			imei,
-			1 flag
-		from
-			ronghui_mart.sz_device_list
-		where
-			data_date = '{0}'
-	""".format(data_date)
-	print(sql)
-	devices = spark.sql(sql)
-	return devices
-
 def getValidDevices(spark, data_date):
 	sql = """
 		select
@@ -76,18 +62,13 @@ if __name__ == '__main__':
 	print('====> Parsing local arguments')
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--query_date', type=str)
-	parser.add_argument('--data_date', type=str)
+	parser.add_argument('--device_date', type=str)
 	args = parser.parse_args()
-	query_month = args.query_date[:6]
-	month_end = query_month+str(monthrange(int(query_month[:4]), int(query_month[4:]))[1])
+	#query_month = args.query_date[:6]
+	#month_end = query_month+str(monthrange(int(query_month[:4]), int(query_month[4:]))[1])
 
 	print('====> Start calculation')
-	'''
-	devices = getInvalidDevices(spark, month_end)
-	records = getRawRecords(spark, args.query_date)
-	records = records.join(devices, on=['imei'], how='left_outer').where(F.col('flag').isNull())
-	'''
-	devices = getValidDevices(spark, args.data_date)
+	devices = getValidDevices(spark, args.device_date)
 	records = getRawRecords(spark, args.query_date)
 	records = records.join(devices, on=['imei'], how='inner')
 	apps = records.drop('imei').repartition(10000, 'app_package').rdd.map(lambda row: (row['app_package'].encode('utf-8'), 1)).reduceByKey(lambda x, y: x+y)
