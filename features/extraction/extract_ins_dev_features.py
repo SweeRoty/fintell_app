@@ -120,7 +120,7 @@ if __name__ == '__main__':
 	print('====> Initializing Spark APP')
 	localConf = RawConfigParser()
 	localConf.optionxform = str
-	localConf.read('./config')
+	localConf.read('../../config')
 	sparkConf = SparkConf()
 	for t in localConf.items('spark-config'):
 		sparkConf.set(t[0], t[1])
@@ -197,8 +197,8 @@ if __name__ == '__main__':
 		dev_props_3 = dev_props_3.withColumn(col, F.when(dev_props_3[col].isNull(), F.lit(0)).otherwise(dev_props_3[col]))
 	vertices = vertices.join(dev_props_3, on='app_package', how='left_outer')
 
-	vertices = vertices.select('app_package', 'price_avg', 'price_std', 'price_na_ratio', 'gender_avg', 'gender_na_ratio' \
-								'age_0_ratio', 'age_1_ratio', 'age_2_ratio', 'age_3_ratio', 'age_4_ratio' \
+	vertices = vertices.select('app_package', 'price_avg', 'price_std', 'price_na_ratio', 'gender_avg', 'gender_na_ratio', \
+								'age_0_ratio', 'age_1_ratio', 'age_2_ratio', 'age_3_ratio', 'age_4_ratio', \
 								'degree_0_ratio', 'degree_1_ratio', 'degree_2_ratio', 'degree_3_ratio', 'degree_4_ratio') \
 								.registerTempTable('tmp')
 	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_09 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.fr)).collect()
