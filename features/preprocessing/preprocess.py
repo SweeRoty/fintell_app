@@ -1,10 +1,17 @@
 # -*- coding: utf-8 -*-
 
+import argparse
+
 import numpy as np
 import pandas as pd
 
 if __name__ == '__main__':
-	features = pd.read_csv('./ins_20200901_20200914_2799.csv')
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--input', type=str)
+	parser.add_argument('--output', type=str)
+	args = parser.parse_args()
+
+	features = pd.read_csv(args.input)
 
 	"""
 	## price
@@ -60,4 +67,4 @@ if __name__ == '__main__':
 	"""
 	features.drop(['oaid_avg', 'gender_na_ratio', 'removed_device_count', 'installed_device_count'], axis=1, inplace=True)
 	"""
-	features.drop(['removed_device_count', 'installed_device_count'], axis=1).to_csv('./final_features_0901_0914_2799.csv', index=False)
+	features.drop(['removed_device_count', 'installed_device_count'], axis=1).to_csv(args.output, index=False)
