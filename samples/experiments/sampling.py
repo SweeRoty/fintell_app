@@ -32,4 +32,4 @@ if __name__ == '__main__':
 	samples.sort_values('app_index', inplace=True)
 	samples['app_index'] = np.arange(1, samples.shape[0]+1)
 	samples.loc[samples.label < 0, 'label'] = False
-	samples[['app_package', 'app_index', 'label', 'phase']].to_csv(args.output, index=False)
+	samples[['app_package', 'app_index', 'class_one', 'label', 'phase']].to_csv(args.output, index=False)
