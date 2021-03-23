@@ -125,7 +125,7 @@ if __name__ == '__main__':
 	for t in localConf.items('spark-config'):
 		sparkConf.set(t[0], t[1])
 	spark = SparkSession.builder \
-			.appName('RLab_APP_Project___Extract_Installment_Features') \
+			.appName('RLab_APP_Project___Extract_APP_Features') \
 			.config(conf=sparkConf) \
 			.enableHiveSupport() \
 			.getOrCreate()
@@ -137,107 +137,121 @@ if __name__ == '__main__':
 	parser.add_argument('--thres', type=int)
 	parser.add_argument('--fr', type=str, help='Start date, format: yyyyMMdd')
 	parser.add_argument('--to', type=str, help='End date, format: yyyyMMdd')
+	parser.add_argument('--is_dev', action='store_true', default=False)
+	parser.add_argument('--is_ins', action='store_true', default=False)
 	args = parser.parse_args()
 	assert args.to >= args.fr
 	month_end = datetime.strptime(args.fr, '%Y%m%d').replace(day=1)-timedelta(days=1)
 	month_end = month_end.strftime('%Y%m%d')
 
 	print('====> Start computation')
-	vertices = getVertices(spark, args.fr, args.thres)
-	vertices = set(vertices.rdd.map(lambda row: row['app_package'].encode('utf-8')).collect())
+	vertex_set = getVertices(spark, args.fr, args.thres)
+	vertex_set = set(vertex_set.rdd.map(lambda row: row['app_package'].encode('utf-8')).collect())
 
 	records = retrieveRawRecords(spark, args.fr, args.to)
-	records = records.rdd.filter(lambda row: row['app_package'].encode('utf-8') in vertices).toDF()
+	records = records.rdd.filter(lambda row: row['app_package'].encode('utf-8') in vertex_set).toDF()
+
+	vertices = [(app_package,) for app_package in vertex_set]
+	vertices = spark.createDataFrame(data=vertices, schema=['app_package'])
 
 	"""
 		Step 2: Computing APP's device features based on their installed devices
 	"""
-	devices = loadSampledDevices(spark, args.fr).sample(False, 0.05, 11267)
-	props = getProperties(spark, month_end)
-	devices = devices.join(props, on='imei', how='left_outer')
-	#oaids = getOaidDevices(spark, args.to)
-	#devices = devices.join(oaids, on='imei', how='left_outer')
-	for kind in ['nl', 'xb', 'xl']:
-		portraits = getPortraits(spark, month_end, kind)
-		devices = devices.join(portraits, on='imei', how='left_outer')
-	records = records.join(devices, on='imei', how='inner')
+	if args.is_dev:
+		devices = loadSampledDevices(spark, args.fr).sample(False, 0.05, 11267)
+		#props = getProperties(spark, month_end)
+		#devices = devices.join(props, on='imei', how='left_outer')
+		#oaids = getOaidDevices(spark, args.to)
+		#devices = devices.join(oaids, on='imei', how='left_outer')
+		for kind in ['nl', 'xb', 'xl']:
+			portraits = getPortraits(spark, month_end, kind)
+			devices = devices.join(portraits, on='imei', how='left_outer')
+		records = records.join(devices, on='imei', how='inner')
 
-	vertices = [(app_package,) for app_package in vertices]
-	vertices = spark.createDataFrame(data=vertices, schema=['app_package'])
+		"""
+		dev_props_1 = records.groupBy('app_package') \
+								.agg(\
+									#F.mean('price').alias('price_avg'), \
+									#F.stddev('price').alias('price_std'), \
+									#F.mean(F.when(F.isnull('price'), 1).otherwise(0)).alias('price_na_ratio'), \
+									#F.mean('imei_type').alias('oaid_avg'), \
+									#F.mean(F.when(F.isnull('imei_type'), 1).otherwise(0)).alias('oaid_na_ratio'), \
+									F.mean('gender').alias('gender_avg'), \
+									F.mean(F.when(F.isnull('gender'), 0).otherwise(1)).alias('gender_na_ratio'))
+		vertices = vertices.join(dev_props_1, on='app_package', how='left_outer')
+		"""
 
-	dev_props_1 = records.groupBy('app_package') \
-							.agg(F.mean('price').alias('price_avg'), \
-								F.stddev('price').alias('price_std'), \
-								F.mean(F.when(F.isnull('price'), 1).otherwise(0)).alias('price_na_ratio'), \
-								#F.mean('imei_type').alias('oaid_avg'), \
-								#F.mean(F.when(F.isnull('imei_type'), 1).otherwise(0)).alias('oaid_na_ratio'), \
-								F.mean('gender').alias('gender_avg'), \
-								F.mean(F.when(F.isnull('gender'), 0).otherwise(1)).alias('gender_na_ratio'))
-	vertices = vertices.join(dev_props_1, on='app_package', how='left_outer')
+		dev_props_2 = records.groupBy('app_package') \
+								.pivot('age', [0, 1, 2, 3, 4]) \
+								.agg(F.count('imei'))
+		cols = dev_props_2.columns
+		cols = [col if col == 'app_package' else 'age_{0}_ratio'.format(col) for col in cols]
+		dev_props_2 = dev_props_2.toDF(*cols)
+		for age in range(5):
+			col = 'age_{0}_ratio'.format(age)
+			dev_props_2 = dev_props_2.withColumn(col, F.when(dev_props_2[col].isNull(), F.lit(0)).otherwise(dev_props_2[col]))
+		vertices = vertices.join(dev_props_2, on='app_package', how='left_outer')
 
-	dev_props_2 = records.groupBy('app_package') \
-							.pivot('age', [0, 1, 2, 3, 4]) \
-							.agg(F.count('imei'))
-	cols = dev_props_2.columns
-	cols = [col if col == 'app_package' else 'age_{0}_ratio'.format(col) for col in cols]
-	dev_props_2 = dev_props_2.toDF(*cols)
-	for age in range(5):
-		col = 'age_{0}_ratio'.format(age)
-		dev_props_2 = dev_props_2.withColumn(col, F.when(dev_props_2[col].isNull(), F.lit(0)).otherwise(dev_props_2[col]))
-	vertices = vertices.join(dev_props_2, on='app_package', how='left_outer')
+		"""
+		dev_props_3 = records.groupBy('app_package') \
+								.pivot('degree', [0, 1, 2, 3, 4]) \
+								.agg(F.count('imei'))
+		cols = dev_props_3.columns
+		cols = [col if col == 'app_package' else 'degree_{0}_ratio'.format(col) for col in cols]
+		dev_props_3 = dev_props_3.toDF(*cols)
+		for degree in range(5):
+			col = 'degree_{0}_ratio'.format(degree)
+			dev_props_3 = dev_props_3.withColumn(col, F.when(dev_props_3[col].isNull(), F.lit(0)).otherwise(dev_props_3[col]))
+		vertices = vertices.join(dev_props_3, on='app_package', how='left_outer')
+		"""
 
-	dev_props_3 = records.groupBy('app_package') \
-							.pivot('degree', [0, 1, 2, 3, 4]) \
-							.agg(F.count('imei'))
-	cols = dev_props_3.columns
-	cols = [col if col == 'app_package' else 'degree_{0}_ratio'.format(col) for col in cols]
-	dev_props_3 = dev_props_3.toDF(*cols)
-	for degree in range(5):
-		col = 'degree_{0}_ratio'.format(degree)
-		dev_props_3 = dev_props_3.withColumn(col, F.when(dev_props_3[col].isNull(), F.lit(0)).otherwise(dev_props_3[col]))
-	vertices = vertices.join(dev_props_3, on='app_package', how='left_outer')
-
-	vertices = vertices.select('app_package', 'price_avg', 'price_std', 'price_na_ratio', 'gender_avg', 'gender_na_ratio', \
-								'age_0_ratio', 'age_1_ratio', 'age_2_ratio', 'age_3_ratio', 'age_4_ratio', \
-								'degree_0_ratio', 'degree_1_ratio', 'degree_2_ratio', 'degree_3_ratio', 'degree_4_ratio') \
-								.registerTempTable('tmp')
-	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_09 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.fr)).collect()
+		"""
+		vertices = vertices.select('app_package', 'price_avg', 'price_std', 'price_na_ratio', 'gender_avg', 'gender_na_ratio', \
+									'age_0_ratio', 'age_1_ratio', 'age_2_ratio', 'age_3_ratio', 'age_4_ratio', \
+									'degree_0_ratio', 'degree_1_ratio', 'degree_2_ratio', 'degree_3_ratio', 'degree_4_ratio') \
+									.registerTempTable('tmp')
+		"""
+		#vertices = vertices.withColumn('price_na_ratio', F.lit(-1))
+		#vertices = vertices.select('app_package', 'gender_avg', 'gender_na_ratio', 'price_na_ratio').registerTempTable('tmp')
+		vertices = vertices.select('app_package', 'age_0_ratio', 'age_1_ratio', 'age_2_ratio', 'age_3_ratio', 'age_4_ratio').registerTempTable('tmp')
+		spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_02 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.fr)).collect()
 
 	"""
 		Step 3: Computing APP's installment count features
 	"""
-	status = ['0', '2']
-	status_dict = {'0':'removed', '2':'installed'}
-	records = records.select(['app_package', 'status', 'imei']).cache()
-	vertices = vertices.select(['app_package']).cache()
+	if args.is_ins:
+		status = ['0', '2']
+		status_dict = {'0':'removed', '2':'installed'}
+		records = records.select(['app_package', 'status', 'imei']).cache()
+		vertices = vertices.select(['app_package']).cache()
 
-	counts = records.rdd \
-					.map(lambda row: ('{0}_rlab_{1}'.format(row['app_package'].encode('utf-8'), row['status']), 1)) \
-					.reduceByKey(add) \
-					.map(transform_to_row) \
-					.toDF() \
-					.groupBy('app_package') \
-					.pivot('status', status) \
-					.sum()
-	cols = counts.columns
-	cols = [col if col == 'app_package' else '{0}_count'.format(status_dict[col]) for col in cols]
-	counts = counts.toDF(*cols)
-	vertices = vertices.join(counts, on='app_package', how='left_outer')
-
-	dev_counts = records.rdd \
-						.map(lambda row: ('{0}_rlab_{1}'.format(row['app_package'].encode('utf-8'), row['status']), row['imei'])) \
-						.distinct() \
-						.map(lambda t: (t[0], 1)) \
+		counts = records.rdd \
+						.map(lambda row: ('{0}_rlab_{1}'.format(row['app_package'].encode('utf-8'), row['status']), 1)) \
 						.reduceByKey(add) \
 						.map(transform_to_row) \
 						.toDF() \
 						.groupBy('app_package') \
 						.pivot('status', status) \
 						.sum()
-	cols = dev_counts.columns
-	cols = [col if col == 'app_package' else '{0}_device_count'.format(status_dict[col]) for col in cols]
-	dev_counts = dev_counts.toDF(*cols)
-	vertices = vertices.join(dev_counts, on='app_package', how='left_outer')
+		cols = counts.columns
+		cols = [col if col == 'app_package' else '{0}_count'.format(status_dict[col]) for col in cols]
+		counts = counts.toDF(*cols)
+		vertices = vertices.join(counts, on='app_package', how='left_outer')
 
-	vertices = vertices.select('app_package', 'removed_count', 'installed_count', 'removed_device_count', 'installed_device_count').registerTempTable('tmp')
-	spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_08 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.fr)).collect()
+		dev_counts = records.rdd \
+							.map(lambda row: ('{0}_rlab_{1}'.format(row['app_package'].encode('utf-8'), row['status']), row['imei'])) \
+							.distinct() \
+							.map(lambda t: (t[0], 1)) \
+							.reduceByKey(add) \
+							.map(transform_to_row) \
+							.toDF() \
+							.groupBy('app_package') \
+							.pivot('status', status) \
+							.sum()
+		cols = dev_counts.columns
+		cols = [col if col == 'app_package' else '{0}_device_count'.format(status_dict[col]) for col in cols]
+		dev_counts = dev_counts.toDF(*cols)
+		vertices = vertices.join(dev_counts, on='app_package', how='left_outer')
+
+		vertices = vertices.select('app_package', 'removed_count', 'installed_count', 'removed_device_count', 'installed_device_count').registerTempTable('tmp')
+		spark.sql('''INSERT OVERWRITE TABLE ronghui.hgy_08 PARTITION (data_date = '{0}') SELECT * FROM tmp'''.format(args.to)).collect()
