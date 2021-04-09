@@ -22,3 +22,6 @@ done
 fr=$device_date
 spark-submit prepareVertices.py --fr $fr --to $to > log_vertices_preparation_$fr
 hadoop fs -put log_vertices_preparation_$fr /user/hive/warehouse/ronghui_bj.db/etl_v1_2/log/hgy/
+
+spark-submit retrieveSamples.py --data_date $fr --thres $thres > log_sample_preparation_$fr
+hadoop fs -put log_sample_preparation_$fr /user/hive/warehouse/ronghui_bj.db/etl_v1_2/log/hgy/
