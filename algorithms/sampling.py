@@ -8,7 +8,7 @@ import pandas as pd
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--input', type=str)
-	parser.add_argument('--output', type=str)
+	parser.add_argument('--output', type=str, default='./final_samples.csv')
 	parser.add_argument('--seed', type=int, default=186)
 	args = parser.parse_args()
 
