@@ -1,6 +1,6 @@
 ## MLP
 1. `cd neural_network/mlp`
-2. Preprocess the features `python feature_engineering.py --sample $sample --x_path $x_path`. $sample and $x_path specify the paths of the sample file and raw feature file
+2. Preprocess the features `python feature_engineering.py --sample $sample --x_path $x_path`. *sample* and *x_path* specify the paths of the sample file and raw feature file
 3. Start train the model `python train.py` Please refer to parameters in the python script 
 
 ## GCM
