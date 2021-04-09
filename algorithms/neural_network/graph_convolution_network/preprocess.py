@@ -7,64 +7,43 @@ import pandas as pd
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--input', type=str)
-	parser.add_argument('--output', type=str)
+	parser.add_argument('--n_path', type=str, default='./app_raw_nodes.csv', help='File path of raw nodes')
+	parser.add_argument('--sample', type=str, default='./final_samples.csv', help='File path of samples')
+	parser.add_argument('--e_path', type=str, default='./app_raw_edges.csv', help='File path of raw edges')
 	args = parser.parse_args()
 
-	features = pd.read_csv(args.input)
+	x = pd.read_csv(args.n_path)
+	x.drop(['removed_device_count', 'installed_device_count'], axis=1, inplace=True)
+	for ins_col in ['removed_count', 'installed_count']:
+		x.loc[x[ins_col].isna(), ins_col] = 0
 
-	"""
-	## price
-	min_price_avg = features.price_avg.min()
-	features.price_avg.fillna(min_price_avg, inplace=True)
-	max_price_avg = features.price_avg.max()
-	features.loc[:, 'price_avg'] = (features.loc[:, 'price_avg'] - min_price_avg) / (max_price_avg - min_price_avg)
-	features.price_std.fillna(0, inplace=True)
-	max_price_std = features.price_std.max()
-	features.loc[:, 'price_std'] = features.loc[:, 'price_std'] / max_price_std
-	features.price_na_ratio.fillna(1, inplace=True)
+	x.loc[x.gender_na_ratio.isna(), 'gender_na_ratio'] = 1
+	gender_avg_mean = np.mean(x.gender_avg)
+	x.loc[x.gender_avg.isna(), 'gender_avg'] = gender_avg_mean
 
-	## OAID
-	features.oaid_avg.fillna(0, inplace=True)
-	features.oaid_na_ratio.fillna(1, inplace=True)
+	for kind in ['degree', 'age']:
+		for i in range(5):
+			indices = x['{}_{}_ratio'.format(kind, i)].isna()
+			x.loc[indices, '{}_{}_ratio'.format(kind, i)] = 0
+		x['{}_count'.format(kind)] = x['{}_0_ratio'.format(kind)] + x['{}_1_ratio'.format(kind)] + x['{}_2_ratio'.format(kind)] + x['{}_3_ratio'.format(kind)] + x['{}_4_ratio'.format(kind)]
+		for i in range(5):
+			x['{}_{}_count'.format(kind, i)] = x.loc[:, '{}_{}_ratio'.format(kind, i)]
+			x['{}_{}_ratio'.format(kind, i)] = 0
+			indices = x['{}_count'.format(kind)] != 0
+			x.loc[indices, '{}_{}_ratio'.format(kind, i)] = np.around(x.loc[indices, '{}_{}_count'.format(kind, i)]/x.loc[indices, '{}_count'.format(kind)], 4)
+	x.drop(['degree_4_count', 'degree_4_ratio'], axis=1, inplace=True)
 
-	## gender
-	features.gender_avg.fillna(0.5, inplace=True)
-	features.gender_na_ratio.fillna(1, inplace=True)
+	for col in x_train.columns:
+		if 'count' in col:
+			col_max = x[col].max()
+			x.loc[:, col] = np.log(x.loc[:, col]+1)/np.log(col_max+1)
 
-	## age
-	age_cols = ['age_{0}_ratio'.format(i) for i in range(5)]
-	age_sums = features.loc[:, age_cols].sum(axis=1)
-	age_sums.replace(0, 1, inplace=True)
-	for col in age_cols:
-		features.loc[:, col] = features.loc[:, col]/age_sums
-		features.loc[:, col].fillna(0, inplace=True)
-	del age_sums
+	samples = pd.read_csv(args.sample)
+	samples = x.merge(samples, on='app_package', how='inner')
+	samples.sort_values('app_index', ascending=True, inplace=True)
+	samples.drop('app_index', axis=1).to_csv('./app_nodes.csv', index=False)
 
-	## degree
-	degree_cols = ['degree_{0}_ratio'.format(i) for i in range(5)]
-	degree_sums = features.loc[:, degree_cols].sum(axis=1)
-	degree_sums.replace(0, 1, inplace=True)
-	for col in degree_cols:
-		features.loc[:, col] = features.loc[:, col]/degree_sums
-		features.loc[:, col].fillna(0, inplace=True)
-	del degree_sums
-	"""
-
-	## installment
-	max_removed_count = features.removed_count.max()
-	features.loc[:, 'removed_count'] = np.log(features.loc[:, 'removed_count'].values+1)/np.log(max_removed_count+1)
-	max_installed_count = features.installed_count.max()
-	features.loc[:, 'installed_count'] = np.log(features.loc[:, 'installed_count'].values+1)/np.log(max_installed_count+1)
-	max_removed_device_count = features.removed_device_count.max()
-	features.loc[:, 'removed_device_count'] = np.log(features.loc[:, 'removed_device_count'].values+1)/np.log(max_removed_device_count+1)
-	max_installed_device_count = features.installed_device_count.max()
-	features.loc[:, 'installed_device_count'] = np.log(features.loc[:, 'installed_device_count'].values+1)/np.log(max_installed_device_count+1)
-	for col in ['removed_count', 'installed_count', 'removed_device_count', 'installed_device_count']:
-		features.loc[:, col].fillna(0, inplace=True)
-
-	print(features.describe())
-	"""
-	features.drop(['oaid_avg', 'gender_na_ratio', 'removed_device_count', 'installed_device_count'], axis=1, inplace=True)
-	"""
-	features.drop(['removed_device_count', 'installed_device_count'], axis=1).to_csv(args.output, index=False)
+	edges = pd.read_csv(args.e_path)
+	edges.loc[:, 'fr'] = edges.loc[:, 'fr'] - 1
+	edges.loc[:, 'to'] = edges.loc[:, 'to'] - 1
+	edges.drop('data_date', axis=1).to_csv('./app_edges.csv', index=False)
