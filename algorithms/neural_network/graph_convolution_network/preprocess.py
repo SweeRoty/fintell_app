@@ -33,7 +33,7 @@ if __name__ == '__main__':
 			x.loc[indices, '{}_{}_ratio'.format(kind, i)] = np.around(x.loc[indices, '{}_{}_count'.format(kind, i)]/x.loc[indices, '{}_count'.format(kind)], 4)
 	x.drop(['degree_4_count', 'degree_4_ratio'], axis=1, inplace=True)
 
-	for col in x_train.columns:
+	for col in x.columns:
 		if 'count' in col:
 			col_max = x[col].max()
 			x.loc[:, col] = np.log(x.loc[:, col]+1)/np.log(col_max+1)
