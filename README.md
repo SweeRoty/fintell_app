@@ -5,10 +5,10 @@
 * Execute the *start.sh* script. Change the IO path in the Spark scripts if necessary.
 
   ```
-  cd samples/
+  cd vertices/
   cd preparation/ & sh modify_schema_for_vertex_raw.sh & sh modify_schema_for_vertex.sh & cd ..
-  cd vertices/ & sh start.sh
-  cd ../../
+  sh start.sh
+  cd ../
   ```
 
 ### Step 2: Extract edges
