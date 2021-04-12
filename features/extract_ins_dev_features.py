@@ -120,7 +120,7 @@ if __name__ == '__main__':
 	print('====> Initializing Spark APP')
 	localConf = RawConfigParser()
 	localConf.optionxform = str
-	localConf.read('../../config')
+	localConf.read('../config')
 	sparkConf = SparkConf()
 	for t in localConf.items('spark-config'):
 		sparkConf.set(t[0], t[1])
@@ -159,10 +159,12 @@ if __name__ == '__main__':
 	"""
 	if args.is_dev:
 		devices = loadSampledDevices(spark, args.fr).sample(False, 0.05, 11267)
-		#props = getProperties(spark, month_end)
-		#devices = devices.join(props, on='imei', how='left_outer')
-		#oaids = getOaidDevices(spark, args.to)
-		#devices = devices.join(oaids, on='imei', how='left_outer')
+		"""
+		props = getProperties(spark, month_end)
+		devices = devices.join(props, on='imei', how='left_outer')
+		oaids = getOaidDevices(spark, args.to)
+		devices = devices.join(oaids, on='imei', how='left_outer')
+		"""
 		for kind in ['nl', 'xb', 'xl']:
 			portraits = getPortraits(spark, month_end, kind)
 			devices = devices.join(portraits, on='imei', how='left_outer')
