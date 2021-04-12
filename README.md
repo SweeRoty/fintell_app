@@ -1,6 +1,6 @@
 ## APP Graph
 
-### Step1: Extract samples (vertices)
+### Step1: Extract vertices
 * If the hive tables for storing vertices are not created, create them first. Substitute the table names in the bash scripts if necessary.
 * Execute the *start.sh* script. Change the IO path in the Spark scripts if necessary.
 
@@ -11,7 +11,7 @@
   cd ../../
   ```
 
-### Step 2: Extract connections (edges)
+### Step 2: Extract edges
 * If the hive table for storing edges is not created, create it first. Substitute the table name in the bash script if necessary.
 * Execute the *start.sh* script. Change the IO path in the Spark scripts if necessary.
 
@@ -22,7 +22,7 @@
   cd ../
   ```
 
-### Step3: Construct features
+### Step3: Extract features
 * If the hive tables for storing features are not created, create them first. Substitute the table names in the bash scripts accordingly.
 * Execute the *start.sh* script. Change the IO path in the Spark scripts if necessary.
 
