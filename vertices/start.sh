@@ -8,7 +8,7 @@ fr=$1
 to=$2
 thres=$3
 
-spark-submit selectDevices.py --fr $fr --to $to --thres $thres > log_device_selection_$fr
+spark-submit selectDevices.py --fr $fr --to $to > log_device_selection_$fr
 hadoop fs -put log_device_selection_$fr /user/hive/warehouse/ronghui_bj.db/etl_v1_2/log/hgy/
 
 device_date=$fr
